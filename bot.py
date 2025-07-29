@@ -1,80 +1,116 @@
 import os
 import openai
-from dotenv import load_dotenv
+import logging
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes
+)
 
-# Load environment variables
-load_dotenv()
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-# Configure OpenAI
-openai.api_key = os.getenv('OPENAI_API_KEY')
-
-# Bot configuration
-BOT_USERNAME = '@your_bot_username'  # Replace with your bot's username
+# Initialize conversation history
+conversations = {}
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Hello! I\'m your AI assistant. How can I help you today?')
+    """Enhanced start command with user greeting"""
+    user = update.message.from_user
+    await update.message.reply_text(
+        f"Hello {user.first_name}! 🤖\n"
+        "I'm your AI assistant. How can I help you today?\n\n"
+        "Use /reset to clear our conversation history."
+    )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = """
-    I'm an AI-powered chatbot. Just send me a message and I'll respond!
-    
-    Commands:
-    /start - Start the bot
-    /help - Show this help message
-    """
-    await update.message.reply_text(help_text)
+async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Reset conversation history"""
+    user_id = update.message.from_user.id
+    conversations[user_id] = [
+        {"role": "system", "content": "You are a helpful assistant."}
+    ]
+    await update.message.reply_text("🔄 Conversation history cleared!")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message_type = update.message.chat.type
+    """Handle messages with conversation history"""
+    user_id = update.message.from_user.id
     text = update.message.text
-
-    print(f'User ({update.message.chat.id}) in {message_type}: "{text}"')
-
-    if message_type == 'group':
-        if BOT_USERNAME in text:
-            new_text = text.replace(BOT_USERNAME, '').strip()
-            response = generate_openai_response(new_text)
-        else:
-            return
-    else:
-        response = generate_openai_response(text)
-
-    print('Bot:', response)
-    await update.message.reply_text(response)
-
-def generate_openai_response(prompt):
+    
+    # Initialize conversation if new user
+    if user_id not in conversations:
+        conversations[user_id] = [
+            {"role": "system", "content": "You are a helpful assistant."}
+        ]
+    
+    # Add user message to history
+    conversations[user_id].append({"role": "user", "content": text})
+    
     try:
+        # Generate response
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
-            ]
+            messages=conversations[user_id],
+            max_tokens=1000,
+            temperature=0.7
         )
-        return response.choices[0].message.content
+        
+        ai_reply = response.choices[0].message.content
+        
+        # Add to history
+        conversations[user_id].append({"role": "assistant", "content": ai_reply})
+        
+        # Split long messages
+        if len(ai_reply) > 4000:
+            for i in range(0, len(ai_reply), 4000):
+                await update.message.reply_text(ai_reply[i:i+4000])
+        else:
+            await update.message.reply_text(ai_reply)
+            
     except Exception as e:
-        print(f"OpenAI Error: {e}")
-        return "Sorry, I encountered an error processing your request."
+        logger.error(f"Error: {str(e)}")
+        await update.message.reply_text("⚠️ I encountered an error. Please try again later.")
 
-async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f'Update {update} caused error {context.error}')
+def main():
+    """Start the bot with webhook or polling"""
+    logger.info("Starting bot...")
+    
+    # Validate environment variables
+    if not os.getenv("TELEGRAM_TOKEN") or not os.getenv("OPENAI_API_KEY"):
+        logger.error("Missing required environment variables!")
+        raise ValueError("TELEGRAM_TOKEN and OPENAI_API_KEY must be set")
+    
+    app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
+    
+    # Command handlers
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("reset", reset_command))
+    app.add_handler(CommandHandler("help", help_command))
+    
+    # Message handler
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    # Error handler
+    app.add_error_handler(error_handler)
+    
+    # Deployment detection
+    if os.getenv("RENDER", "false").lower() == "true":
+        public_url = os.getenv("RENDER_EXTERNAL_URL") or f"https://{os.getenv('RENDER_SERVICE_NAME')}.onrender.com"
+        logger.info(f"Starting webhook on {public_url}")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=int(os.getenv("PORT", 10000)),
+            webhook_url=f"{public_url}/webhook",
+            drop_pending_updates=True
+        )
+    else:
+        logger.info("Starting polling...")
+        app.run_polling(drop_pending_updates=True)
 
-if __name__ == '__main__':
-    print('Starting bot...')
-    app = Application.builder().token(os.getenv('TELEGRAM_TOKEN')).build()
-
-    # Commands
-    app.add_handler(CommandHandler('start', start_command))
-    app.add_handler(CommandHandler('help', help_command))
-
-    # Messages
-    app.add_handler(MessageHandler(filters.TEXT, handle_message))
-
-    # Errors
-    app.add_error_handler(error)
-
-    # Polling
-    print('Polling...')
-    app.run_polling(poll_interval=3)
+if __name__ == "__main__":
+    main()
