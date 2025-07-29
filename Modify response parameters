@@ -1,0 +1,7 @@
+response = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo",
+    messages=conversations[user_id],
+    max_tokens=300,       # Shorter responses
+    temperature=0.9,      # More creative responses (0-2)
+    top_p=0.95,           # Diversity control
+)
