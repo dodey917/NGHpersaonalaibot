@@ -1,0 +1,4 @@
+# Change system prompt (bot personality)
+conversations[user_id] = [
+    {"role": "system", "content": "You're a sarcastic technical expert"}
+]
