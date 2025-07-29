@@ -105,32 +105,32 @@ def main():
         logger.error("Missing required environment variables!")
         raise ValueError("TELEGRAM_TOKEN and OPENAI_API_KEY must be set")
     
-    app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
+    # Create application
+    application = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
     
-    # Command handlers
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("reset", reset_command))
+    # Add handlers
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("reset", reset_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_error_handler(error_handler)
     
-    # Message handler
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # Error handler
-    app.add_error_handler(error_handler)
-    
-    # Deployment detection - now with proper webhook support
+    # Check if running on Render
     if os.getenv("RENDER", "false").lower() == "true":
+        logger.info("Running on Render, using webhook...")
         public_url = os.getenv("RENDER_EXTERNAL_URL") or f"https://{os.getenv('RENDER_SERVICE_NAME')}.onrender.com"
-        logger.info(f"Starting webhook on {public_url}")
-        app.run_webhook(
+        port = int(os.getenv("PORT", 10000))
+        
+        # Set webhook
+        application.run_webhook(
             listen="0.0.0.0",
-            port=int(os.getenv("PORT", 10000)),
+            port=port,
             webhook_url=f"{public_url}/webhook",
             drop_pending_updates=True
         )
     else:
-        logger.info("Starting polling...")
-        app.run_polling(drop_pending_updates=True)
+        logger.info("Running locally, using polling...")
+        application.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
