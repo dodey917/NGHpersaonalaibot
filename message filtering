@@ -1,0 +1,6 @@
+# Add before handle_message function
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if "bad word" in update.message.text.lower():
+        await update.message.reply_text("⚠️ Please keep it civil!")
+        return
+    # ... rest of function ...
