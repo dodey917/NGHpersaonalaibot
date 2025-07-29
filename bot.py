@@ -118,7 +118,7 @@ def main():
     # Error handler
     app.add_error_handler(error_handler)
     
-    # Deployment detection
+    # Deployment detection - now with proper webhook support
     if os.getenv("RENDER", "false").lower() == "true":
         public_url = os.getenv("RENDER_EXTERNAL_URL") or f"https://{os.getenv('RENDER_SERVICE_NAME')}.onrender.com"
         logger.info(f"Starting webhook on {public_url}")
