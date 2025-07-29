@@ -21,13 +21,29 @@ logger = logging.getLogger(__name__)
 conversations = {}
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Enhanced start command with user greeting"""
+    """Send welcome message when user sends /start"""
     user = update.message.from_user
     await update.message.reply_text(
         f"Hello {user.first_name}! 🤖\n"
-        "I'm your AI assistant. How can I help you today?\n\n"
+        "I'm your AI Telegram assistant.\n\n"
+        "Just send me a message and I'll respond!\n"
+        "Use /help for commands info\n"
         "Use /reset to clear our conversation history."
     )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send help message when user sends /help"""
+    help_text = """
+    🤖 AI Telegram Bot Help:
+    
+    Available commands:
+    /start - Start the bot
+    /help - Show this help message
+    /reset - Clear conversation history
+    
+    Just send a message to chat with the AI!
+    """
+    await update.message.reply_text(help_text)
 
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reset conversation history"""
@@ -76,6 +92,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error: {str(e)}")
         await update.message.reply_text("⚠️ I encountered an error. Please try again later.")
 
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Log errors"""
+    logger.error(f"Update {update} caused error {context.error}")
+
 def main():
     """Start the bot with webhook or polling"""
     logger.info("Starting bot...")
@@ -89,8 +109,8 @@ def main():
     
     # Command handlers
     app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("reset", reset_command))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("reset", reset_command))
     
     # Message handler
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
