@@ -1,6 +1,6 @@
 .env
-venv/
 __pycache__/
 *.pyc
-TELEGRAM_TOKEN=your_telegram_bot_token
-OPENAI_API_KEY=your_openai_api_key
+.DS_Store
+env/
+service_account.json  # Important: Never commit this to GitHub!
