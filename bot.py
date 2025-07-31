@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -15,6 +16,7 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 GOOGLE_SHEET_ID = os.getenv('GOOGLE_SHEET_ID')
+KNOWLEDGE_BASE_SHEET = "KnowledgeBase"  # Name of your knowledge base sheet
 SYSTEM_PROMPT = "You're a helpful assistant that answers questions conversationally"
 
 # Initialize OpenAI
@@ -30,7 +32,45 @@ def init_google_sheets():
         scopes=['https://www.googleapis.com/auth/spreadsheets']
     )
     client = gspread.authorize(creds)
-    return client.open_by_key(GOOGLE_SHEET_ID).sheet1
+    return client.open_by_key(GOOGLE_SHEET_ID)
+
+# Load knowledge base from Google Sheets
+def load_knowledge_base():
+    try:
+        spreadsheet = init_google_sheets()
+        worksheet = spreadsheet.worksheet(KNOWLEDGE_BASE_SHEET)
+        records = worksheet.get_all_records()
+        
+        knowledge_base = []
+        for record in records:
+            patterns = record['Question Pattern'].split('|')
+            response = record['Response']
+            keywords = record['Keywords'].split(',') if record['Keywords'] else []
+            knowledge_base.append({
+                'patterns': patterns,
+                'response': response,
+                'keywords': [kw.strip().lower() for kw in keywords]
+            })
+        return knowledge_base
+    except Exception as e:
+        logging.error(f"Error loading knowledge base: {e}")
+        return []
+
+# Check if message matches knowledge base
+def check_knowledge_base(message, knowledge_base):
+    message_lower = message.lower()
+    
+    for item in knowledge_base:
+        # Check patterns
+        for pattern in item['patterns']:
+            if re.search(r'\b' + re.escape(pattern.lower()) + r'\b', message_lower):
+                return item['response']
+        
+        # Check keywords
+        if any(keyword in message_lower for keyword in item['keywords']):
+            return item['response']
+    
+    return None
 
 # Enable logging
 logging.basicConfig(
@@ -38,8 +78,11 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+# Load knowledge base at startup
+KNOWLEDGE_BASE = load_knowledge_base()
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Hello! I\'m your ChatGPT 3.5 assistant with Google Docs integration. Ask me anything!')
+    await update.message.reply_text('Hello! I\'m your AI assistant. Ask me anything!')
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -54,23 +97,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             action='typing'
         )
         
-        # Get ChatGPT response
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": message}
-            ],
-            temperature=0.7
-        )
-        
-        reply = response.choices[0].message['content']
-        await update.message.reply_text(reply)
+        # First check knowledge base
+        kb_response = check_knowledge_base(message, KNOWLEDGE_BASE)
+        if kb_response:
+            await update.message.reply_text(kb_response)
+            reply = kb_response
+        else:
+            # Get ChatGPT response
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": message}
+                ],
+                temperature=0.7
+            )
+            reply = response.choices[0].message['content']
+            await update.message.reply_text(reply)
         
         # Log to Google Sheet
         try:
-            sheet = init_google_sheets()
-            sheet.append_row([
+            spreadsheet = init_google_sheets()
+            log_sheet = spreadsheet.sheet1  # First sheet for logging
+            log_sheet.append_row([
                 str(user_id), 
                 username, 
                 message, 
