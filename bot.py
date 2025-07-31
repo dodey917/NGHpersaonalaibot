@@ -6,6 +6,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import openai
 import gspread
 from google.oauth2.service_account import Credentials
+import json
 
 # Load environment variables
 load_dotenv()
@@ -21,8 +22,11 @@ openai.api_key = OPENAI_API_KEY
 
 # Initialize Google Sheets
 def init_google_sheets():
-    creds = Credentials.from_service_account_file(
-        'service_account.json',
+    # Load service account credentials from environment variable
+    service_account_info = json.loads(os.getenv('SERVICE_ACCOUNT_JSON'))
+    
+    creds = Credentials.from_service_account_info(
+        service_account_info,
         scopes=['https://www.googleapis.com/auth/spreadsheets']
     )
     client = gspread.authorize(creds)
@@ -41,7 +45,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         message = update.message.text
         user_id = update.message.from_user.id
-        logging.info(f"User: {user_id} | Query: {message}")
+        username = update.message.from_user.username or str(user_id)
+        logging.info(f"User: {username} | Query: {message}")
         
         # Show typing indicator
         await context.bot.send_chat_action(
@@ -63,9 +68,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(reply)
         
         # Log to Google Sheet
-        sheet = init_google_sheets()
-        sheet.append_row([str(user_id), message, reply])
-        
+        try:
+            sheet = init_google_sheets()
+            sheet.append_row([
+                str(user_id), 
+                username, 
+                message, 
+                reply, 
+                update.message.date.isoformat()
+            ])
+        except Exception as e:
+            logging.error(f"Google Sheets error: {e}")
+
     except Exception as e:
         logging.error(f"Error: {e}")
         await update.message.reply_text("Sorry, I encountered an error. Please try again.")
