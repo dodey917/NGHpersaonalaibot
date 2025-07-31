@@ -1,6 +1,14 @@
+# Environment files
 .env
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+
+# macOS
 .DS_Store
+
+# Virtual environments
+venv/
 env/
-service_account.json  # Important: Never commit this to GitHub!
