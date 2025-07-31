@@ -1,0 +1,6 @@
+git init
+git add .
+git commit -m "Initial commit: Telegram ChatGPT bot with Google Sheets integration"
+git branch -M main
+git remote add origin https://github.com/dodey917/your-repo.git
+git push -u origin main
