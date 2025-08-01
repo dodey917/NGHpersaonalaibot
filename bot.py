@@ -1,4 +1,8 @@
 import os
+print("Current Directory:", os.getcwd())
+print("Directory Contents:", os.listdir())
+print("src Contents:", os.listdir('src'))
+import os
 import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
