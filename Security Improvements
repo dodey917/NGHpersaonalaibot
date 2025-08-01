@@ -1,0 +1,6 @@
+# Add to handle_message()
+RESTRICTED_USERS = [12345678]  # List of allowed user IDs
+
+if update.effective_user.id not in RESTRICTED_USERS:
+    await update.message.reply_text("⛔ Unauthorized access")
+    return
