@@ -1,0 +1,9 @@
+telegram-bot/
+├── src/
+│   ├── __init__.py
+│   ├── bot.py
+│   ├── google_docs.py
+│   └── chatgpt.py
+├── requirements.txt
+├── .gitignore
+└── README.md
