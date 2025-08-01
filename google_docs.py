@@ -1,3 +1,4 @@
+# google_docs.py
 import os
 import json
 from google.oauth2 import service_account
@@ -15,10 +16,18 @@ def get_doc_content(doc_id: str) -> str:
         return doc_cache[doc_id]
     
     try:
+        # Load credentials from environment variable
+        creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
+        if not creds_json:
+            return "❌ Google credentials not configured"
+            
+        creds_info = json.loads(creds_json)
+        
         creds = service_account.Credentials.from_service_account_info(
-            json.loads(os.getenv('GOOGLE_CREDENTIALS_JSON')),
+            creds_info,
             scopes=SCOPES
         )
+        
         service = build('docs', 'v1', credentials=creds)
         document = service.documents().get(documentId=doc_id).execute()
         
