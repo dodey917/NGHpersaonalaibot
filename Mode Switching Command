@@ -1,0 +1,14 @@
+# Add to bot.py
+async def set_mode_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    modes = ['google_docs', 'chatgpt', 'hybrid']
+    if context.args and context.args[0] in modes:
+        os.environ['SOURCE_MODE'] = context.args[0]
+        await update.message.reply_text(f"✅ Mode set to: {context.args[0]}")
+    else:
+        await update.message.reply_text(
+            "Please specify a valid mode:\n"
+            "/mode google_docs\n"
+            "/mode chatgpt\n"
+            "/mode hybrid\n\n"
+            f"Current mode: {os.getenv('SOURCE_MODE')}"
+        )
