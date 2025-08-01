@@ -1,4 +1,17 @@
+# bot.py
 import os
+import sys
+import logging
+from dotenv import load_dotenv
+from telegram import Update
+from telegram.ext import Application, ContextTypes
+
+# Add src directory to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Now import your modules
+from src.google_docs import get_doc_content
+from src.chatgpt import generate_chatgpt_responseimport os
 print("Current Directory:", os.getcwd())
 print("Directory Contents:", os.listdir())
 print("src Contents:", os.listdir('src'))
