@@ -1,0 +1,2 @@
+if estimated_cost > MAX_COST:
+    return "⚠️ Query too complex. Please simplify your request."
