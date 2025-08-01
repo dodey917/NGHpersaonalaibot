@@ -1,0 +1,2 @@
+# Track per-user usage
+user_tokens[user_id] = user_tokens.get(user_id, 0) + response.usage.total_tokens
