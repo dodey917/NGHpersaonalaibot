@@ -1,0 +1,6 @@
+# In chatgpt.py
+response = await client.chat.completions.create(
+    # ...
+    max_tokens=1000,  # Reduce for cost savings
+    response_format={"type": "json_object"}  # Easier parsing
+)
