@@ -1,9 +1,6 @@
 telegram-bot/
-├── src/
-│   ├── __init__.py
-│   ├── bot.py
-│   ├── google_docs.py
-│   └── chatgpt.py
-├── requirements.txt
-├── .gitignore
-└── README.md
+├── bot.py               # Main bot file
+├── google_docs.py       # Google Docs integration
+├── chatgpt.py           # ChatGPT integration
+├── requirements.txt     # Dependencies
+└── .env.example         # Environment template
