@@ -6,18 +6,18 @@ from cachetools import TTLCache
 response_cache = TTLCache(maxsize=500, ttl=3600)
 
 async def generate_chatgpt_response(prompt: str) -> str:
-    # Check cache first
-    cached = response_cache.get(prompt)
-    if cached:
-        return f"⚡ Cached response:\n\n{cached}"
-    
-    client = openai.AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-    
     try:
+        # Check cache first
+        cached = response_cache.get(prompt)
+        if cached:
+            return f"⚡ Cached response:\n\n{cached}"
+        
+        client = openai.AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        
         response = await client.chat.completions.create(
             model=os.getenv('OPENAI_MODEL', 'gpt-4-turbo'),
             messages=[
-                {"role": "system", "content": "You're a helpful assistant. Provide concise, accurate answers."},
+                {"role": "system", "content": "You're a helpful assistant."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1500,
@@ -25,13 +25,8 @@ async def generate_chatgpt_response(prompt: str) -> str:
         )
         
         content = response.choices[0].message.content.strip()
-        
-        # Cache response
-        response_cache[prompt] = content
-        
+        response_cache[prompt] = content  # Cache response
         return content
     
-    except openai.APIError as e:
-        return f"OpenAI API error: {e.message}"
     except Exception as e:
-        return f"Error generating response: {str(e)}"
+        return f"⚠️ ChatGPT error: {str(e)}"
