@@ -4,4 +4,4 @@ google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.2.0
 openai==1.14.2
 python-dotenv==1.0.0
-cachetools==5.3.2  # For response caching
+cachetools==5.3.2
