@@ -1,4 +1,3 @@
-# google_docs.py
 import os
 import json
 from google.oauth2 import service_account
@@ -11,26 +10,25 @@ doc_cache = TTLCache(maxsize=5, ttl=1800)
 SCOPES = ['https://www.googleapis.com/auth/documents.readonly']
 
 def get_doc_content(doc_id: str) -> str:
-    # Check cache first
-    if doc_id in doc_cache:
-        return doc_cache[doc_id]
-    
     try:
-        # Load credentials from environment variable
+        # Check cache first
+        if doc_id in doc_cache:
+            return doc_cache[doc_id]
+        
+        # Load credentials from environment
         creds_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
         if not creds_json:
             return "❌ Google credentials not configured"
             
-        creds_info = json.loads(creds_json)
-        
         creds = service_account.Credentials.from_service_account_info(
-            creds_info,
+            json.loads(creds_json),
             scopes=SCOPES
         )
         
         service = build('docs', 'v1', credentials=creds)
         document = service.documents().get(documentId=doc_id).execute()
         
+        # Extract text content
         content = []
         for elem in document.get('body', {}).get('content', []):
             if 'paragraph' in elem:
