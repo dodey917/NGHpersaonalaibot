@@ -1,18 +1,3 @@
-# bot.py (add to top)
-import os
-import logging
-
-# Diagnostic logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Debug paths
-logger.info(f"Current directory: {os.getcwd()}")
-logger.info(f"Directory contents: {os.listdir()}")
-if 'src' in os.listdir():
-    logger.info(f"src contents: {os.listdir('src')}")
-
-# ... rest of your code ...
 import os
 import logging
 from telegram import Update
@@ -21,30 +6,39 @@ from google_docs import get_doc_content
 from chatgpt import generate_chatgpt_response
 from dotenv import load_dotenv
 
-load_dotenv()  # For local testing
+# Load environment variables
+load_dotenv()
 
 # Configure logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
+# Restrict access to specific users (optional)
+ALLOWED_USERS = [int(os.getenv('TELEGRAM_ADMIN_ID'))] if os.getenv('TELEGRAM_ADMIN_ID') else None
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
-    user_id = update.effective_user.id
-    logger.info(f"User {user_id}: {user_message}")
-    
-    mode = os.getenv('SOURCE_MODE', 'hybrid')
-    
     try:
+        # Check if user is allowed
+        if ALLOWED_USERS and update.effective_user.id not in ALLOWED_USERS:
+            await update.message.reply_text("⛔ Unauthorized access")
+            return
+
+        user_message = update.message.text
+        mode = os.getenv('SOURCE_MODE', 'hybrid')
+        
         if mode == 'google_docs':
             response = get_doc_content(os.getenv('GOOGLE_DOC_ID'))
         elif mode == 'chatgpt':
             response = await generate_chatgpt_response(user_message)
         else:  # Hybrid mode
             doc_content = get_doc_content(os.getenv('GOOGLE_DOC_ID'))
-            prompt = f"Based on this document: '{doc_content[:2000]}'...\n\nAnswer this: {user_message}"
+            prompt = f"Document context:\n{doc_content[:2000]}\n\nUser question: {user_message}"
             response = await generate_chatgpt_response(prompt)
         
-        await update.message.reply_text(response[:4000])  # Truncate to Telegram limits
+        await update.message.reply_text(response[:4000])  # Telegram message limit
     
     except Exception as e:
         logger.error(f"Error: {str(e)}")
@@ -58,11 +52,11 @@ def main():
     
     # Command Handlers
     app.add_handler(CommandHandler('start', start_command))
-    app.add_handler(CommandHandler('mode', set_mode_command))
     
     # Message Handler
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
+    # Start the Bot
     app.run_polling()
 
 if __name__ == '__main__':
